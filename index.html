@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>MC Skin Studio 3D — Classic Block Edition</title>
+  <style>
+    :root {
+      --bg-main: #090d16;
+      --bg-panel: rgba(15, 22, 36, 0.92);
+      --bg-card: rgba(24, 34, 54, 0.88);
+      --accent: #38bdf8;
+      --accent-2: #22c55e;
+      --danger: #ef4444;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --border: rgba(148, 163, 184, 0.22);
+      --bg-dim: 0.25;
+      --bg-blur: 0px;
+      --safe-top: max(12px, env(safe-area-inset-top));
+      --safe-bottom: max(12px, env(safe-area-inset-bottom));
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg-main);
+      color: var(--text);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      touch-action: none;
+    }
+
+    #wallpaper-layer {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      background-size: cover;
+      background-position: center;
+      filter: blur(var(--bg-blur)) brightness(calc(1 - var(--bg-dim) * 0.65));
+      pointer-events: none;
+    }
+
+    #sw-canvas, #gl-canvas {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      touch-action: none;
+    }
+
+    #sw-canvas { z-index: 1; }
+    #gl-canvas {
+      z-index: 2;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+    }
+    #gl-canvas.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .ui-shell {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      pointer-events: none;
+      transition: opacity 0.14s ease;
+    }
+
+    .ui-shell.slider-hiding {
+      opacity: 0 !important;
+      pointer-events: none !important;
+    }
+
+    .interactive {
+      pointer-events: auto;
+    }
+
+    /* Top Header Bar */
+    .top-bar {
+      position: fixed;
+      top: var(--safe-top);
+      left: 56px;
+      right: 12px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      z-index: 20;
+      pointer-events: none;
+    }
+
+    .brand-pill, .account-pill {
+      pointer-events: auto;
+      height: 42px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 12px;
+      border-radius: 12px;
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      backdrop-filter: blur(12px);
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .engine-tag {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 6px;
+      background: rgba(56, 189, 248, 0.16);
+      color: var(--accent);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+    }
+
+    .head-mini {
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
+      image-rendering: pixelated;
+      border: 1px solid rgba(255,255,255,0.2);
+      background: #1e293b;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #64748b;
+    }
+    .status-dot.online {
+      background: var(--accent-2);
+      box-shadow: 0 0 8px var(--accent-2);
+    }
+
+    /* Side Docks */
+    .side-tab-btn {
+      position: fixed;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 22;
+      pointer-events: auto;
+      padding: 12px 7px;
+      border-radius: 12px;
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-size: 11px;
+      font-weight: 700;
+      writing-mode: vertical-rl;
+      letter-spacing: 1px;
+      cursor: pointer;
+    }
+    #ai-side-btn { left: 10px; }
+    #stamp-side-btn { right: 10px; }
+
+    /* Bottom Mode & Anim Bars */
+    .bottom-stack {
+      position: fixed;
+      left: 10px;
+      right: 10px;
+      bottom: var(--safe-bottom);
+      z-index: 20;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+    }
+
+    .dock-row {
+      pointer-events: auto;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      padding: 6px 8px;
+      border-radius: 14px;
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      backdrop-filter: blur(12px);
+    }
+    .dock-row::-webkit-scrollbar { display: none; }
+
+    .mc-btn {
+      flex: 0 0 auto;
+      height: 36px;
+      padding: 0 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+    }
+    .mc-btn.active {
+      background: var(--accent);
+      color: #04101c;
+      border-color: var(--accent);
+      font-weight: 800;
+    }
+    .mc-btn.green {
+      background: rgba(34, 197, 94, 0.18);
+      border-color: rgba(34, 197, 94, 0.45);
+      color: #86efac;
+    }
+    .mc-btn.danger {
+      background: rgba(239, 68, 68, 0.18);
+      border-color: rgba(239, 68, 68, 0.45);
+      color: #fca5a5;
+    }
+
+    /* Paint Floating Dock */
+    #paint-dock {
+      position: fixed;
+      left: 12px;
+      right: 12px;
+      bottom: 106px;
+      z-index: 25;
+      pointer-events: auto;
+      display: none;
+      flex-direction: column;
+      gap: 8px;
+      padding: 10px;
+      border-radius: 14px;
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      backdrop-filter: blur(14px);
+    }
+    #paint-dock.open { display: flex; }
+
+    .paint-controls {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .swatches {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .swatch {
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
+      border: 2px solid rgba(255,255,255,0.25);
+      cursor: pointer;
+    }
+
+    /* Slide-over Studio Drawer */
+    #studio-drawer {
+      position: fixed;
+      top: calc(var(--safe-top) + 52px);
+      right: 10px;
+      width: min(360px, calc(100vw - 20px));
+      max-height: calc(100vh - var(--safe-top) - 165px);
+      overflow-y: auto;
+      z-index: 30;
+      pointer-events: auto;
+      display: none;
+      flex-direction: column;
+      gap: 10px;
+      padding: 12px;
+      border-radius: 16px;
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      backdrop-filter: blur(16px);
+    }
+    #studio-drawer.open { display: flex; }
+
+    .panel-section {
+      padding: 10px;
+      border-radius: 12px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .row-flex {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    input[type="text"], input[type="password"], select {
+      width: 100%;
+      height: 36px;
+      padding: 0 10px;
+      border-radius: 9px;
+      border: 1px solid var(--border);
+      background: rgba(9, 13, 22, 0.85);
+      color: var(--text);
+      font-size: 12px;
+      outline: none;
+    }
+
+    /* Stamp Dock */
+    #stamp-dock {
+      position: fixed;
+      right: 10px;
+      bottom: 106px;
+      width: min(320px, calc(100vw - 20px));
+      max-height: 54vh;
+      overflow-y: auto;
+      z-index: 26;
+      pointer-events: auto;
+      display: none;
+      flex-direction: column;
+      gap: 8px;
+      padding: 10px;
+      border-radius: 14px;
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      backdrop-filter: blur(14px);
+    }
+    #stamp-dock.open { display: flex; }
+
+    .slider-row {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .slider-label {
+      display: flex;
+      justify-content: space-between;
+    }
+
+    /* AI Skin Buddy Dock */
+    #ai-dock {
+      position: fixed;
+      left: 10px;
+      width: min(340px, calc(100vw - 20px));
+      bottom: 106px;
+      max-height: 44vh;
+      z-index: 26;
+      pointer-events: auto;
+      display: none;
+      flex-direction: column;
+      gap: 8px;
+      padding: 10px;
+      border-radius: 14px;
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      backdrop-filter: blur(14px);
+    }
+    #ai-dock.open { display: flex; }
+
+    #ai-messages {
+      flex: 1;
+      min-height: 90px;
+      max-height: 22vh;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding-right: 2px;
+    }
+
+    .msg {
+      padding: 7px 10px;
+      border-radius: 10px;
+      font-size: 12px;
+      line-height: 1.35;
+      max-width: 88%;
+      word-break: break-word;
+    }
+    .msg.user {
+      align-self: flex-end;
+      background: rgba(56, 189, 248, 0.22);
+      border: 1px solid rgba(56, 189, 248, 0.45);
+    }
+    .msg.bot {
+      align-self: flex-start;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+    }
+
+    /* Account Modal */
+    #auth-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 60;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      background: rgba(2, 6, 23, 0.82);
+      backdrop-filter: blur(10px);
+    }
+    #auth-modal.open { display: flex; }
+
+    .auth-card {
+      width: 100%;
+      max-width: 360px;
+      padding: 16px;
+      border-radius: 16px;
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* Boot Splash Screen */
+    #boot-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: radial-gradient(circle at top, #172554, #060913 72%);
+    }
+
+    .boot-box {
+      width: 100%;
+      max-width: 340px;
+      padding: 20px;
+      border-radius: 18px;
+      background: rgba(15, 23, 42, 0.92);
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .xp-track {
+      width: 100%;
+      height: 12px;
+      border-radius: 999px;
+      background: #0f172a;
+      border: 1px solid rgba(255,255,255,0.14);
+      overflow: hidden;
+    }
+
+    .xp-fill {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, #22c55e, #84cc16);
+      transition: width 0.12s linear;
+    }
+
+    .toast {
+      position: fixed;
+      top: calc(var(--safe-top) + 52px);
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 80;
+      padding: 7px 14px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid var(--accent);
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 700;
+      display: none;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+    .toast.show { display: block; }
+  </style>
+</head>
+<body>
+  <div id="wallpaper-layer"></div>
+  <canvas id="sw-canvas"></canvas>
+  <canvas id="gl-canvas"></canvas>
+
+  <div id="toast" class="toast"></div>
+
+  <div class="ui-shell" id="ui-shell">
+    <!-- Top Header -->
+    <header class="top-bar">
+      <button id="brand-btn" class="brand-pill" type="button">
+        <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
+          <polygon points="12,2 22,7.5 12,13 2,7.5" fill="#4ade80"/>
+          <polygon points="2,7.5 12,13 12,22 2,16.5" fill="#78350f"/>
+          <polygon points="22,7.5 12,13 12,22 22,16.5" fill="#92400e"/>
+          <polygon points="12,5 17,7.8 12,10.6 7,7.8" fill="#38bdf8"/>
+        </svg>
+        <span>MC 3D</span>
+        <span id="engine-badge" class="engine-tag">3D SW</span>
+      </button>
+
+      <button id="account-pill" class="account-pill" type="button">
+        <canvas id="account-head-canvas" class="head-mini" width="24" height="24"></canvas>
+        <span id="account-label">Guest</span>
+        <span id="account-dot" class="status-dot"></span>
+      </button>
+    </header>
+
+    <!-- Side Dock Triggers -->
+    <button id="ai-side-btn" class="side-tab-btn" type="button">AI SKIN</button>
+    <button id="stamp-side-btn" class="side-tab-btn" type="button">STAMPS</button>
+
+    <!-- AI Skin Buddy Dock -->
+    <section id="ai-dock" aria-label="AI Skin Buddy">
+      <div class="row-flex" style="justify-content: space-between;">
+        <strong style="font-size: 12px; color: var(--accent);">AI SKIN BUDDY</strong>
+        <div class="row-flex" style="gap: 6px;">
+          <select id="ai-lang" style="width: auto; height: 28px; font-size: 11px;">
+            <option value="hinglish">Hinglish</option>
+            <option value="en">English</option>
+            <option value="hi">हिन्दी</option>
+            <option value="es">Español</option>
+            <option value="fr">Français</option>
+            <option value="de">Deutsch</option>
+            <option value="ja">日本語</option>
+            <option value="ko">한국어</option>
+          </select>
+          <button id="ai-close-btn" class="mc-btn" style="height: 28px; padding: 0 8px;" type="button">✕</button>
+        </div>
+      </div>
+
+      <div id="ai-messages"></div>
+
+      <div class="row-flex" style="gap: 6px;">
+        <button id="ai-voice-btn" class="mc-btn" style="padding: 0 9px;" type="button" title="Voice">🎤</button>
+        <input id="ai-input" type="text" placeholder="Baat karo ya command do..." />
+        <button id="ai-send-btn" class="mc-btn green" style="padding: 0 12px;" type="button">➤</button>
+      </div>
+    </section>
+
+    <!-- Stamp Studio Dock -->
+    <section id="stamp-dock" aria-label="Stamp Studio">
+      <div class="row-flex" style="justify-content: space-between;">
+        <strong style="font-size: 12px; color: var(--accent);">STAMP STUDIO (1024px)</strong>
+        <button id="stamp-close-btn" class="mc-btn" style="height: 28px; padding: 0 8px;" type="button">✕</button>
+      </div>
+
+      <input id="stamp-text" type="text" placeholder="Stamp text (e.g. SPICY)" value="SPICY" />
+
+      <div class="row-flex">
+        <select id="stamp-font">
+          <option value="pixel">1. Minecraft Pixel</option>
+          <option value="bold">2. Bold Block</option>
+          <option value="cyber">3. Cyber Tech</option>
+          <option value="graffiti">4. Graffiti Tag</option>
+          <option value="arcade">5. Arcade 8-Bit</option>
+          <option value="royal">6. Royal Serif</option>
+          <option value="neon">7. Neon Outline</option>
+          <option value="stencil">8. Stencil</option>
+          <option value="gothic">9. Gothic Rune</option>
+          <option value="comic">10. Comic Pop</option>
+          <option value="script">11. Script Brush</option>
+          <option value="clean">12. Clean Sans</option>
+        </select>
+        <input id="stamp-color" type="color" value="#facc15" style="width: 44px; height: 36px; padding: 2px; border-radius: 8px; border: 1px solid var(--border); background: transparent;" />
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-label"><span>Width</span><span id="val-sw">28%</span></div>
+        <input id="stamp-w" class="stamp-slider" type="range" min="8" max="90" value="28" />
+      </div>
+      <div class="slider-row">
+        <div class="slider-label"><span>Height</span><span id="val-sh">14%</span></div>
+        <input id="stamp-h" class="stamp-slider" type="range" min="6" max="60" value="14" />
+      </div>
+      <div class="slider-row">
+        <div class="slider-label"><span>Pos X</span><span id="val-sx">50%</span></div>
+        <input id="stamp-x" class="stamp-slider" type="range" min="5" max="95" value="50" />
+      </div>
+      <div class="slider-row">
+        <div class="slider-label"><span>Pos Y</span><span id="val-sy">42%</span></div>
+        <input id="stamp-y" class="stamp-slider" type="range" min="5" max="95" value="42" />
+      </div>
+
+      <div class="row-flex">
+        <button id="stamp-apply-btn" class="mc-btn green" style="flex: 1;" type="button">✓ Apply Stamp</button>
+        <button id="stamp-clear-btn" class="mc-btn danger" style="flex: 1;" type="button">✕ Clear</button>
+      </div>
+    </section>
+
+    <!-- Direct 3D Paint Dock -->
+    <section id="paint-dock" aria-label="3D Paint Tools">
+      <div class="paint-controls">
+        <button class="mc-btn active" data-ptool="brush" type="button">🖌️ Brush</button>
+        <button class="mc-btn" data-ptool="eraser" type="button">🧽 Eraser</button>
+        <button class="mc-btn" data-ptool="fill" type="button">🪣 Fill</button>
+        <button class="mc-btn" data-ptool="pick" type="button">💉 Pick</button>
+        <button id="mirror-x-btn" class="mc-btn active" type="button">Mirror X</button>
+        <input id="paint-color" type="color" value="#38bdf8" style="width: 38px; height: 34px; border-radius: 8px; border: 1px solid var(--border); background: transparent;" />
+        <button id="paint-close-btn" class="mc-btn" type="button">✕</button>
+      </div>
+      <div class="swatches" id="paint-swatches"></div>
+    </section>
+
+    <!-- Slide-over Account & Skin Drawer -->
+    <aside id="studio-drawer" aria-label="Player and Skin Drawer">
+      <div class="row-flex" style="justify-content: space-between;">
+        <strong style="font-size: 13px; color: var(--accent);">PLAYER & SKIN STUDIO</strong>
+        <button id="drawer-close-btn" class="mc-btn" style="height: 28px; padding: 0 8px;" type="button">✕</button>
+      </div>
+
+      <div class="panel-section">
+        <div class="row-flex" style="justify-content: space-between;">
+          <div>
+            <div id="drawer-user" style="font-weight: 700; font-size: 13px;">Guest</div>
+            <div id="drawer-sub" style="font-size: 11px; color: var(--muted);">Session saved automatically</div>
+          </div>
+          <button id="auth-action-btn" class="mc-btn green" type="button">Login / Sign Up</button>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <div class="row-flex">
+          <input id="mc-fetch-input" type="text" placeholder="Java Username (e.g. Dream, Notch)" />
+          <button id="mc-fetch-btn" class="mc-btn green" type="button">Fetch</button>
+        </div>
+        <div class="row-flex">
+          <select id="res-select">
+            <option value="512">512×512 UHD</option>
+            <option value="256">256×256</option>
+            <option value="128">128×128</option>
+            <option value="64" selected>64×64 Classic</option>
+          </select>
+          <button id="import-png-btn" class="mc-btn" type="button">Import</button>
+          <button id="export-png-btn" class="mc-btn green" type="button">Export</button>
+          <input id="png-file-input" type="file" accept="image/png,image/*" hidden />
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <div class="row-flex" style="flex-wrap: wrap;">
+          <button class="mc-btn" data-preset="steve" type="button">Steve</button>
+          <button class="mc-btn" data-preset="alex" type="button">Alex</button>
+          <button class="mc-btn" data-preset="cyber" type="button">Cyber</button>
+          <button class="mc-btn" data-preset="demon" type="button">Demon</button>
+          <button class="mc-btn" data-preset="knight" type="button">Knight</button>
+        </div>
+        <div class="row-flex">
+          <button id="arm-model-btn" class="mc-btn" style="flex: 1;" type="button">Arms: Classic</button>
+          <button id="cape-toggle-btn" class="mc-btn" style="flex: 1;" type="button">Cape: Off</button>
+        </div>
+      </div>
+
+      <div class="panel-section">
+    
